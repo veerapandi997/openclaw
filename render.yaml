@@ -1,0 +1,259 @@
+# render.yaml - OpenClaw with OpenRouter Integration
+# This configuration uses OpenRouter to access 200+ AI models through a single API key
+# Supports cost optimization with model fallbacks and dynamic routing
+
+services:
+  - type: web
+    name: openclaw
+    runtime: docker
+    region: oregon
+    plan: free
+    
+    healthCheckPath: /health
+    healthCheckInterval: 30
+    
+    buildCommand: npm install
+    startCommand: npm run start
+    
+    envVars:
+      # ===== RENDER REQUIREMENTS =====
+      - key: PORT
+        value: "10000"
+      
+      - key: NODE_ENV
+        value: "production"
+      
+      # ===== OPENCLAW CORE SETTINGS =====
+      - key: OPENCLAW_GATEWAY_PORT
+        value: "10000"
+      
+      - key: OPENCLAW_STATE_DIR
+        value: /tmp/.openclaw
+      
+      - key: OPENCLAW_WORKSPACE_DIR
+        value: /tmp/workspace
+      
+      - key: OPENCLAW_GATEWAY_TOKEN
+        generateValue: true
+      
+      # ===== OPENROUTER CONFIGURATION =====
+      # Set provider to openrouter
+      - key: OPENCLAW_LLM_PROVIDER
+        value: "openrouter"
+      
+      # Your OpenRouter API key (get from https://openrouter.ai/keys)
+      # Add as SECRET in Render dashboard
+      - key: OPENROUTER_API_KEY
+        sync: false
+      
+      # Optional: Set default model (if not specified, uses openrouter/auto)
+      # Popular options:
+      # - openrouter/anthropic/claude-sonnet-4-5 (best balance)
+      # - openrouter/openai/gpt-4-turbo (most capable)
+      # - openrouter/google/gemini-2-5-flash (fast, cheap)
+      # - openrouter/meta-llama/llama-3-1-405b-instruct (powerful open source)
+      # - openrouter/auto (automatic routing based on task)
+      - key: OPENCLAW_MODEL
+        value: "openrouter/anthropic/claude-sonnet-4-5"
+      
+      # Optional: OpenRouter site ID (for tracking usage in dashboard)
+      - key: OPENROUTER_SITE_ID
+        value: "openclaw-agent"
+      
+      # Optional: Custom app name (appears in OpenRouter request logs)
+      - key: OPENROUTER_APP_NAME
+        value: "My OpenClaw Agent"
+      
+      # ===== OPTIONAL: COST OPTIMIZATION =====
+      # Fallback models if primary fails
+      # OpenRouter will automatically try these in order
+      - key: OPENCLAW_MODEL_FALLBACK_1
+        value: "openrouter/google/gemini-2-5-flash"
+      
+      - key: OPENCLAW_MODEL_FALLBACK_2
+        value: "openrouter/meta-llama/llama-3-1-70b-instruct"
+      
+      # ===== OPTIONAL: DISABLE RESOURCE-HEAVY SKILLS =====
+      - key: OPENCLAW_DISABLE_SKILLS
+        value: "gmail,google_calendar,slack"
+      
+      # ===== LOGGING =====
+      - key: LOG_LEVEL
+        value: "info"
+      
+      - key: DEBUG
+        value: "openclaw:*"
+
+# ===== IMPORTANT NOTES =====
+#
+# 1. NO PERSISTENT DISK ON FREE TIER
+#    State resets on redeploy/restart
+#    Add disk section below if you upgrade to paid plan
+#
+# 2. OPENROUTER BENEFITS:
+#    ✓ 200+ models available through single API key
+#    ✓ Cost optimization with fallback chains
+#    ✓ No vendor lock-in
+#    ✓ Pay-as-you-go pricing
+#
+# 3. MODEL SELECTION RECOMMENDATIONS:
+#    - Fast/Cheap tasks: openrouter/google/gemini-2-5-flash (~$0.50/M tokens)
+#    - General purpose: openrouter/anthropic/claude-sonnet-4-5
+#    - Complex reasoning: openrouter/openai/gpt-4-turbo
+#    - Open source: openrouter/meta-llama/llama-3-1-405b-instruct
+#    - Auto routing: openrouter/auto (cost optimized)
+#
+# 4. UPGRADE TO PAID (recommended for production):
+#    - Change plan: free → plan: starter
+#    - Uncomment disk section below
+#    - Adds persistent storage (~$7/month)
+
+# Uncomment for production (paid plan only):
+# disk:
+#   name: openclaw-data
+#   mountPath: /data
+#   sizeGB: 1
+
+# ===== STEP-BY-STEP SETUP =====
+#
+# 1. Get OpenRouter API Key:
+#    a. Go to https://openrouter.ai
+#    b. Sign up with email/GitHub
+#    c. Go to https://openrouter.ai/keys
+#    d. Create new API key (format: sk-or-v1-xxxxx)
+#    e. Add credits (pay-as-you-go, minimum $5)
+#
+# 2. Update this render.yaml:
+#    a. Replace OPENROUTER_API_KEY value in envVars
+#    b. Choose your preferred model
+#    c. Commit and push to GitHub
+#
+# 3. Deploy to Render:
+#    a. Go to https://render.com
+#    b. Connect your GitHub fork of OpenClaw
+#    c. Create new service from this render.yaml
+#    d. Add OPENROUTER_API_KEY as a SECRET:
+#       - Environment tab → Add Environment Variable
+#       - Key: OPENROUTER_API_KEY
+#       - Value: sk-or-v1-xxxxx
+#       - Click "Secret" (shows lock icon)
+#    e. Deploy
+#
+# 4. Access your agent:
+#    a. Wait for "Port scan successful"
+#    b. Go to https://<service-name>.onrender.com
+#    c. Use OPENCLAW_GATEWAY_TOKEN from Environment tab
+#    d. Connect Telegram/WhatsApp for messaging
+#
+# ===== AVAILABLE MODELS (Popular Examples) =====
+#
+# Anthropic:
+#   openrouter/anthropic/claude-opus-4-6         (Most capable, $15/M input)
+#   openrouter/anthropic/claude-sonnet-4-5       (Best balance, $3/M input)
+#   openrouter/anthropic/claude-haiku-3-5        (Fast, cheap, $0.80/M input)
+#
+# OpenAI:
+#   openrouter/openai/gpt-4-turbo                (Powerful, $10/M input)
+#   openrouter/openai/gpt-4o                     (Newest, $5/M input)
+#   openrouter/openai/gpt-4o-mini                (Fast, $0.15/M input)
+#
+# Google:
+#   openrouter/google/gemini-2-5-pro             (Capable, $1.25/M input)
+#   openrouter/google/gemini-2-5-flash           (Fast, $0.075/M input)
+#   openrouter/google/gemini-2-5-flash-lite      (Cheapest, $0.50/M input)
+#
+# Meta (Open Source):
+#   openrouter/meta-llama/llama-3-1-405b-instruct (Large, capable)
+#   openrouter/meta-llama/llama-3-1-70b-instruct  (Balanced, fast)
+#   openrouter/meta-llama/llama-3-1-8b-instruct   (Small, cheap)
+#
+# Mistral:
+#   openrouter/mistralai/mistral-large            (Capable, affordable)
+#   openrouter/mistralai/mistral-medium           (Good balance)
+#   openrouter/mistralai/mistral-small            (Fast, cheap)
+#
+# Special:
+#   openrouter/auto                               (Auto-routes based on task)
+#
+# ===== PRICING COMPARISON (approximate) =====
+#
+# Model                        Input Cost    Speed    Best For
+# -------------------------------------------------------------------
+# Gemini 2.5 Flash            $0.50/M       Fast     Quick tasks, summaries
+# Claude Haiku 3.5            $0.80/M       Fast     Small tasks
+# Mistral Small               $0.15/M       Fast     Very cheap tasks
+# Claude Sonnet 4.5           $3/M          Medium   General purpose ✓ RECOMMENDED
+# Gemini 2.5 Pro              $1.25/M       Medium   Good balance
+# GPT-4o                      $5/M          Medium   Strong reasoning
+# Claude Opus 4.6             $15/M         Slow     Most capable
+# GPT-4 Turbo                 $10/M         Medium   Complex tasks
+#
+# ===== COST OPTIMIZATION STRATEGY =====
+#
+# Recommended setup:
+# Primary: openrouter/anthropic/claude-sonnet-4-5
+# Fallback 1: openrouter/google/gemini-2-5-flash (if Claude fails)
+# Fallback 2: openrouter/meta-llama/llama-3-1-70b (if Google fails)
+#
+# This gives you:
+# ✓ Best-in-class capability as default
+# ✓ Fast fallback for resilience
+# ✓ Open-source option as last resort
+# ✓ Cost optimization across models
+#
+# ===== MONITORING & DEBUGGING =====
+#
+# Check your usage:
+# 1. Go to https://openrouter.ai/activity
+# 2. View request logs and costs
+# 3. See which models were used
+# 4. Monitor API key balance
+#
+# Troubleshooting:
+# 1. Check Render logs for errors:
+#    Render Dashboard → Logs tab
+# 2. Verify API key is correct:
+#    Render Dashboard → Environment tab
+# 3. Test OpenRouter connectivity:
+#    curl -H "Authorization: Bearer sk-or-v1-xxxxx" \
+#      https://openrouter.ai/api/v1/models
+# 4. Check OpenRouter status:
+#    https://openrouter.ai/status
+#
+# ===== COMMON ISSUES & SOLUTIONS =====
+#
+# Issue: "No API key found for provider openrouter"
+# Solution:
+#   a. Check Render Environment tab
+#   b. Verify key format: sk-or-v1-xxxxx
+#   c. Key must be added as SECRET (not sync)
+#   d. Redeploy after adding key
+#
+# Issue: "OpenRouter API rate limit exceeded"
+# Solution:
+#   a. Switch to cheaper fallback model
+#   b. Add more credits at openrouter.ai
+#   c. Wait a few minutes and retry
+#
+# Issue: "Model not found: openrouter/xxx"
+# Solution:
+#   a. Check available models: https://openrouter.ai/docs/models
+#   b. Use correct format: openrouter/author/model-name
+#   c. Some models may be deprecated, check for replacements
+#
+# Issue: Agent responds slowly
+# Solution:
+#   a. Switch to faster model: gemini-2-5-flash or haiku
+#   b. Check OpenRouter status page
+#   c. Consider dedicated VPS for better latency
+
+# ===== ADVANCED: MULTI-AGENT WITH DIFFERENT MODELS =====
+#
+# For production with multiple specialized agents:
+#
+# Agent 1 (Research): openrouter/google/gemini-2-5-pro
+# Agent 2 (Coding): openrouter/anthropic/claude-opus-4-6
+# Agent 3 (Admin): openrouter/openai/gpt-4o
+#
+# This requires manual config in openclaw.json:
+# See "OPENCLAW_CONFIG_ADVANCED.md" for details
